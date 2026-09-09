@@ -1,0 +1,362 @@
+{
+  "info": {
+    "name": "Personal Ops Agent — Task Agent",
+    "description": "Test agent + REST to-do qua HTTP. Chạy trước:\n  docker compose up -d\n  python -m scripts.seed_facts\n  uvicorn app.main:app --reload\n\nThứ tự đề xuất: 0 (debug) → 1 (chat xếp lịch) → 2 (REST tasks) → 3 (checklist) → 4 (plan).\nCác request POST/PUT có Tests script tự lưu id trả về vào collection variable ({{task_id}}, {{item_id}}, {{slot_id}}) để request sau dùng luôn — không phải copy tay.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "host", "value": "http://localhost:8000", "type": "string" },
+    { "key": "session_id", "value": "chat:thong", "type": "string" },
+    { "key": "task_id", "value": "1", "type": "string" },
+    { "key": "item_id", "value": "1", "type": "string" },
+    { "key": "slot_id", "value": "1", "type": "string" },
+    { "key": "week_start", "value": "2026-08-31", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "0 · debug từng tầng",
+      "item": [
+        {
+          "name": "GET /debug/config — provider/model đang nạp",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{host}}/debug/config", "host": ["{{host}}"], "path": ["debug", "config"] },
+            "description": "Xem app THỰC SỰ nạp gì từ .env (key bị che). Check trước khi nghi lỗi provider."
+          }
+        },
+        {
+          "name": "GET /debug/tools — 11 tool đang đăng ký",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{host}}/debug/tools", "host": ["{{host}}"], "path": ["debug", "tools"] },
+            "description": "Registry: add_task, list_tasks, update_task, complete_task, set_checklist, check_item, get_plan, save_plan, reschedule, recall, remember."
+          }
+        },
+        {
+          "name": "POST /debug/tool — chạy add_task (bỏ qua LLM)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"add_task\",\n  \"arguments\": { \"title\": \"Việc test qua debug\", \"estimate_hours\": 1 }\n}"
+            },
+            "url": { "raw": "{{host}}/debug/tool", "host": ["{{host}}"], "path": ["debug", "tool"] },
+            "description": "Kiểm tool chạy đúng, độc lập model. Đổi \"name\" để test tool khác (list_tasks, recall, ...)."
+          }
+        },
+        {
+          "name": "POST /debug/tool — recall (đọc facts)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"recall\",\n  \"arguments\": { \"query\": \"thói quen xếp lịch\", \"category\": \"planning\" }\n}"
+            },
+            "url": { "raw": "{{host}}/debug/tool", "host": ["{{host}}"], "path": ["debug", "tool"] },
+            "description": "Cần đã chạy `python -m scripts.seed_facts` trước. Trả rỗng = chưa seed."
+          }
+        },
+        {
+          "name": "POST /debug/llm — 1 lần gọi model (chưa loop)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Thêm việc: viết báo cáo, ước tính 4 tiếng\",\n  \"use_tools\": true,\n  \"use_system\": true\n}"
+            },
+            "url": { "raw": "{{host}}/debug/llm", "host": ["{{host}}"], "path": ["debug", "llm"] },
+            "description": "Xem model trả text hay tool_calls (add_task). use_tools=false để so sánh."
+          }
+        },
+        {
+          "name": "GET /debug/session/:id — history đang lưu (Redis)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/debug/session/{{session_id}}",
+              "host": ["{{host}}"],
+              "path": ["debug", "session", "{{session_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "1 · chat (agent loop)",
+      "item": [
+        {
+          "name": "POST /chat — liệt kê việc trong tuần",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_id\": \"{{session_id}}\",\n  \"message\": \"Tuần này tôi có: viết báo cáo quý 3 khoảng 6 tiếng hạn thứ 6, review 4 PR backend 2 tiếng, học pgvector 3 tiếng, chuẩn bị slide họp team 1.5 tiếng hạn thứ 5.\"\n}"
+            },
+            "url": { "raw": "{{host}}/chat", "host": ["{{host}}"], "path": ["chat"] },
+            "description": "Checkpoint: 4 add_task trong trace[]. Xem `GET /tasks` sau đó để thấy task đã vào DB."
+          }
+        },
+        {
+          "name": "POST /chat — nhờ xếp lịch tuần",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_id\": \"{{session_id}}\",\n  \"message\": \"Xếp lịch các việc đó vào tuần này giúp tôi, nhớ tôn trọng thói quen làm việc của tôi.\"\n}"
+            },
+            "url": { "raw": "{{host}}/chat", "host": ["{{host}}"], "path": ["chat"] },
+            "description": "Checkpoint Phần 5+E: trace[] có recall → list_tasks → save_plan. Xem `GET /plan` sau đó."
+          }
+        },
+        {
+          "name": "POST /chat — hỏi lại cùng session (nhớ context — Phần 4)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_id\": \"{{session_id}}\",\n  \"message\": \"Việc nào đang quá hạn?\"\n}"
+            },
+            "url": { "raw": "{{host}}/chat", "host": ["{{host}}"], "path": ["chat"] }
+          }
+        },
+        {
+          "name": "POST /chat — dạy 1 thói quen mới (remember)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_id\": \"{{session_id}}\",\n  \"message\": \"Từ giờ nhớ giúp tôi: sáng thứ 2 tôi luôn có họp 1 tiếng, đừng xếp việc vào giờ đó.\"\n}"
+            },
+            "url": { "raw": "{{host}}/chat", "host": ["{{host}}"], "path": ["chat"] },
+            "description": "Checkpoint: trace[] gọi remember. Kiểm lại bằng recall ở mục 0."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2 · tasks (REST CRUD)",
+      "item": [
+        {
+          "name": "POST /tasks — tạo việc",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('task_id', String(body.id));",
+                  "  console.log('task_id ->', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Viết báo cáo quý III\",\n  \"notes\": \"Cho buổi review với mentor\",\n  \"estimate_hours\": 6,\n  \"deadline\": \"2026-09-04\",\n  \"priority\": 1,\n  \"project\": \"ITTIME\"\n}"
+            },
+            "url": { "raw": "{{host}}/tasks", "host": ["{{host}}"], "path": ["tasks"] },
+            "description": "Lưu id trả về vào {{task_id}} — request bên dưới dùng luôn."
+          }
+        },
+        {
+          "name": "GET /tasks — liệt kê tất cả",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{host}}/tasks", "host": ["{{host}}"], "path": ["tasks"] }
+          }
+        },
+        {
+          "name": "GET /tasks?status=todo — lọc theo status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{host}}/tasks?status=todo",
+              "host": ["{{host}}"],
+              "path": ["tasks"],
+              "query": [{ "key": "status", "value": "todo" }]
+            }
+          }
+        },
+        {
+          "name": "GET /tasks/:id — chi tiết + checklist",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{host}}/tasks/{{task_id}}",
+              "host": ["{{host}}"],
+              "path": ["tasks", "{{task_id}}"]
+            }
+          }
+        },
+        {
+          "name": "PATCH /tasks/:id — sửa (vd đổi status doing)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"doing\"\n}" },
+            "url": {
+              "raw": "{{host}}/tasks/{{task_id}}",
+              "host": ["{{host}}"],
+              "path": ["tasks", "{{task_id}}"]
+            }
+          }
+        },
+        {
+          "name": "PATCH /tasks/:id — complete (status done)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"done\"\n}" },
+            "url": {
+              "raw": "{{host}}/tasks/{{task_id}}",
+              "host": ["{{host}}"],
+              "path": ["tasks", "{{task_id}}"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /tasks/:id",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{host}}/tasks/{{task_id}}",
+              "host": ["{{host}}"],
+              "path": ["tasks", "{{task_id}}"]
+            },
+            "description": "Cascade xoá luôn checklist_items + plan_slots của task này (ON DELETE CASCADE)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3 · checklist",
+      "item": [
+        {
+          "name": "PUT /tasks/:id/checklist — đặt checklist",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const items = pm.response.json();",
+                  "  if (items.length) {",
+                  "    pm.collectionVariables.set('item_id', String(items[0].id));",
+                  "    console.log('item_id ->', items[0].id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    \"Lập dàn ý\",\n    \"Thu thập số liệu\",\n    \"Viết bản nháp\",\n    \"Review với mentor\",\n    \"Chốt bản cuối\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{host}}/tasks/{{task_id}}/checklist",
+              "host": ["{{host}}"],
+              "path": ["tasks", "{{task_id}}", "checklist"]
+            },
+            "description": "Ghi đè toàn bộ checklist cũ. Lưu id bước đầu tiên vào {{item_id}}."
+          }
+        },
+        {
+          "name": "PATCH /checklist/:item_id — tick xong",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"done\": true\n}" },
+            "url": {
+              "raw": "{{host}}/checklist/{{item_id}}",
+              "host": ["{{host}}"],
+              "path": ["checklist", "{{item_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4 · plan (kế hoạch tuần)",
+      "item": [
+        {
+          "name": "POST /plan/replan — nhờ LLM xếp lịch tuần",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"week_start\": \"{{week_start}}\"\n}"
+            },
+            "url": { "raw": "{{host}}/plan/replan", "host": ["{{host}}"], "path": ["plan", "replan"] },
+            "description": "Gọi engine.run() với prompt xếp lịch mặc định — cùng cơ chế /chat, chỉ khác input source. Cần đã có task todo (mục 1 hoặc 2)."
+          }
+        },
+        {
+          "name": "GET /plan — xem kế hoạch tuần active",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const plan = pm.response.json();",
+                  "  if (plan.slots && plan.slots.length) {",
+                  "    pm.collectionVariables.set('slot_id', String(plan.slots[0].id));",
+                  "    console.log('slot_id ->', plan.slots[0].id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{host}}/plan?week={{week_start}}",
+              "host": ["{{host}}"],
+              "path": ["plan"],
+              "query": [{ "key": "week", "value": "{{week_start}}" }]
+            },
+            "description": "404 nếu tuần này chưa có plan — chạy /plan/replan hoặc /chat xếp lịch trước."
+          }
+        },
+        {
+          "name": "PATCH /plan/slots/:id — dời slot sang ngày khác",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"day\": \"2026-09-04\",\n  \"planned_hours\": 2\n}"
+            },
+            "url": {
+              "raw": "{{host}}/plan/slots/{{slot_id}}",
+              "host": ["{{host}}"],
+              "path": ["plan", "slots", "{{slot_id}}"]
+            },
+            "description": "Kéo-thả trên UI thật sẽ gọi endpoint này."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+# Core
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+
+# Providers
+anthropic
+openai
+
+# Memory
+sqlalchemy[asyncio]
+asyncpg
+redis
+
+# Tools
+mcp
+httpx
+
+# Automations
+arq
+
+# Dev
+pytest
+pytest-asyncio
+ruff

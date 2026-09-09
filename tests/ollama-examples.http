@@ -1,0 +1,79 @@
+### Ollama — request mẫu cho Personal Ops Agent
+#
+# Dùng với: VS Code "REST Client" extension (bấm "Send Request" phía trên mỗi ###)
+# Hoặc: copy phần JSON body dán vào Postman (POST + header Content-Type: application/json)
+# Hoặc: REST Client có "Copy Request as cURL" (chuột phải)
+
+@host = http://localhost:11434
+@model = qwen2.5:3b
+
+### 1. Kiểm tra Ollama sống — list model đã cài
+GET {{host}}/api/tags
+
+### 2. Chat cơ bản (không tool)
+POST {{host}}/v1/chat/completions
+Content-Type: application/json
+
+{
+  "model": "{{model}}",
+  "stream": false,
+  "messages": [
+    { "role": "system", "content": "Bạn trả lời ngắn gọn bằng tiếng Việt." },
+    { "role": "user", "content": "Tool-calling là gì?" }
+  ]
+}
+
+### 3. Chat CÓ tool — xem model xin gọi tool
+POST {{host}}/v1/chat/completions
+Content-Type: application/json
+
+{
+  "model": "{{model}}",
+  "stream": false,
+  "messages": [
+    { "role": "user", "content": "Kiểm tra email chưa đọc quan trọng giúp tôi" }
+  ],
+  "tools": [
+    { "type": "function", "function": {
+        "name": "gmail.list_unread",
+        "description": "Liệt kê email chưa đọc; có thể lọc chỉ email được gắn cờ.",
+        "parameters": {
+          "type": "object",
+          "properties": { "flagged": { "type": "boolean" } }
+        }
+    }}
+  ]
+}
+
+### 4. Gửi kết quả tool về (vòng 2 của agent loop)
+POST {{host}}/v1/chat/completions
+Content-Type: application/json
+
+{
+  "model": "{{model}}",
+  "stream": false,
+  "messages": [
+    { "role": "user", "content": "Kiểm tra email chưa đọc quan trọng giúp tôi" },
+    { "role": "assistant", "content": "",
+      "tool_calls": [
+        { "id": "call_abc123", "type": "function",
+          "function": { "name": "gmail.list_unread", "arguments": "{\"flagged\":true}" } }
+      ] },
+    { "role": "tool", "tool_call_id": "call_abc123",
+      "content": "3 email: [sếp] review trước 5pm; [HR] ký hợp đồng; newsletter" }
+  ]
+}
+
+### 5. Có tùy chọn — tăng context window + giảm nhiệt độ
+POST {{host}}/v1/chat/completions
+Content-Type: application/json
+
+{
+  "model": "{{model}}",
+  "stream": false,
+  "messages": [
+    { "role": "user", "content": "Viết 1 câu haiku về mùa thu" }
+  ],
+  "options": { "num_ctx": 8192, "temperature": 0.3 },
+  "keep_alive": "10m"
+}

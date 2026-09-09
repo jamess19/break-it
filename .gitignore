@@ -1,0 +1,15 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# Docs / notes — giữ local, không đẩy lên GitHub
+docs/
+plans/
+agent-platform-backend-guide.md
+personal-ops-agent.html

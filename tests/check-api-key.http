@@ -1,0 +1,43 @@
+### Kiểm tra API key / kết nối LLM provider
+#
+# Dùng với VS Code "REST Client" — bấm "Send Request" trên mỗi ###.
+# {{$dotenv X}} đọc biến từ file .env (KHÔNG hardcode key vào đây).
+#
+# 200 → OK   | 401/403 → key sai   | 404 → sai model/URL   | 429 → hết quota
+
+### OpenAI (hoặc Groq / DeepSeek / HF — đổi OPENAI_BASE_URL trong .env)
+POST {{$dotenv OPENAI_BASE_URL}}/chat/completions
+Authorization: Bearer {{$dotenv OPENAI_API_KEY}}
+Content-Type: application/json
+
+{
+  "model": "gpt-4o-mini",
+  "max_tokens": 5,
+  "messages": [{ "role": "user", "content": "reply with the word ok" }]
+}
+
+### Anthropic
+POST https://api.anthropic.com/v1/messages
+x-api-key: {{$dotenv ANTHROPIC_API_KEY}}
+anthropic-version: 2023-06-01
+Content-Type: application/json
+
+{
+  "model": "claude-haiku-4-5",
+  "max_tokens": 5,
+  "messages": [{ "role": "user", "content": "reply with the word ok" }]
+}
+
+### Ollama (local — không cần key)
+POST {{$dotenv OLLAMA_BASE_URL}}/chat/completions
+Content-Type: application/json
+
+{
+  "model": "qwen2.5:3b",
+  "stream": false,
+  "messages": [{ "role": "user", "content": "reply with the word ok" }]
+}
+
+### OpenAI — liệt kê model tài khoản dùng được (check key nhanh, không tốn token)
+GET {{$dotenv OPENAI_BASE_URL}}/models
+Authorization: Bearer {{$dotenv OPENAI_API_KEY}}
