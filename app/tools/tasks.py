@@ -17,6 +17,15 @@ from app.tools.registry import ToolRegistry
 DAILY_CAPACITY_HOURS = 6.0  # trần giờ làm việc/ngày khi validate kế hoạch
 
 
+def _obj_schema(props: dict, required: list[str] | None = None) -> dict:
+    """Bọc boilerplate JSON Schema object. Optional param được provider tự cho phép
+    null lúc gửi đi (xem openai.py) — ở đây khai type "thật" cho gọn."""
+    schema: dict[str, Any] = {"type": "object", "properties": props}
+    if required:
+        schema["required"] = required
+    return schema
+
+
 # ---------- format helpers ----------
 
 def _task_line(t: Task) -> str:
@@ -46,13 +55,6 @@ def _plan_text(slots: list[PlanSlot]) -> str:
             mark = "✓" if s.done else "•"
             lines.append(f"  {mark} #{s.task_id} {s.task_title} — {s.planned_hours:g}h")
     return "\n".join(lines)
-
-
-def _obj_schema(props: dict, required: list[str] | None = None) -> dict:
-    schema: dict[str, Any] = {"type": "object", "properties": props}
-    if required:
-        schema["required"] = required
-    return schema
 
 
 # ---------- tools ----------

@@ -13,10 +13,10 @@ import json
 import uuid
 from typing import Any
 
-import httpx
-
-from app.domain.message import Message, Role
+from app.domain.message import Message, Role, Usage
 from app.domain.tool import ToolCall, ToolDef
+from app.providers._http import post_json
+from app.util import clean_arguments, cost
 
 
 class OllamaProvider:
@@ -28,14 +28,14 @@ class OllamaProvider:
         api_key: str = "",
         timeout: float = 120.0,
     ) -> None:
-        self._model = model
+        self.model = model
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key  # Ollama không cần; các endpoint OpenAI-compat khác thì cần
         self._timeout = timeout
 
     async def chat(self, messages: list[Message], tools: list[ToolDef]) -> Message:
         payload: dict[str, Any] = {
-            "model": self._model,
+            "model": self.model,
             "messages": [self._message_to_dict(m) for m in messages],
             "stream": False,
         }
@@ -43,16 +43,30 @@ class OllamaProvider:
             payload["tools"] = [self._tool_to_dict(t) for t in tools]
 
         headers = {"Authorization": f"Bearer {self._api_key}"} if self._api_key else {}
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
-            resp = await client.post(
-                f"{self._base_url}/chat/completions", json=payload, headers=headers
-            )
-            resp.raise_for_status()
-            data = resp.json()
+        data = await post_json(
+            f"{self._base_url}/chat/completions",
+            json=payload, headers=headers, timeout=self._timeout,
+        )
 
-        return self._dict_to_message(data["choices"][0]["message"])
+        message = self._dict_to_message(data["choices"][0]["message"])
+        message.usage = self._parse_usage(data.get("usage"))
+        message.cost_usd = cost(message.usage, self.model)
+        return message
 
     # ============ Message: mình <-> dict của provider ============
+
+    @staticmethod
+    def _parse_usage(u: dict[str, Any] | None) -> Usage | None:
+        """Ollama endpoint OpenAI-compat trả `usage` giống OpenAI. None nếu thiếu."""
+        if not u:
+            return None
+        prompt = u.get("prompt_tokens", 0)
+        completion = u.get("completion_tokens", 0)
+        return Usage(
+            prompt_tokens=prompt,
+            completion_tokens=completion,
+            total_tokens=u.get("total_tokens") or prompt + completion,
+        )
 
     @staticmethod
     def _message_to_dict(m: Message) -> dict[str, Any]:
@@ -97,7 +111,7 @@ class OllamaProvider:
                 ToolCall(
                     id=rc.get("id") or f"call_{uuid.uuid4().hex[:8]}",
                     name=fn.get("name", ""),
-                    arguments=args if isinstance(args, dict) else {},
+                    arguments=clean_arguments(args) if isinstance(args, dict) else {},
                 )
             )
 

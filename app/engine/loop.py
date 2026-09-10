@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 
 from app.domain.agent import AgentResult, RunContext
-from app.domain.message import Message, Role
+from app.domain.message import Message, Role, Usage
 from app.providers.base import LLMProvider
 from app.tools.registry import ToolRegistry
 
@@ -29,14 +29,19 @@ async def run_loop(
     prefix = [Message(role=Role.system, content=system)] if system else []
     steps = 0
     tool_calls = 0
+    usage: Usage | None = None # cộng dồn token qua các step; None nếu provider không báo
+    cost_usd: float | None = None  # tổng chi phí; None nếu không step nào tính được
 
     while steps < ctx.max_steps:
         steps += 1
-        log.info("step=%d → provider.chat (msgs=%d, tools=%d)", steps,
-                 len(prefix) + len(messages), len(tool_defs))
+        log.info("step=%d → provider.chat (msgs=%d, tools=%d)", steps, len(prefix) + len(messages), len(tool_defs))
 
         assistant = await provider.chat(prefix + messages, tool_defs)
         messages.append(assistant)
+        if assistant.usage is not None:
+            usage = assistant.usage if usage is None else usage + assistant.usage
+        if assistant.cost_usd is not None:
+            cost_usd = assistant.cost_usd if cost_usd is None else cost_usd + assistant.cost_usd            
 
         # điều kiện dừng: model không xin thêm tool nào nữa
         if not assistant.tool_calls:
@@ -47,6 +52,8 @@ async def run_loop(
                 messages=messages,
                 steps=steps,
                 tool_calls=tool_calls,
+                usage=usage,
+                cost_usd=cost_usd,
             )
 
         # chạy từng tool, nhét kết quả lại vào history rồi lặp
@@ -68,4 +75,6 @@ async def run_loop(
         messages=messages,
         steps=steps,
         tool_calls=tool_calls,
+        usage=usage,
+        cost_usd=cost_usd,
     )

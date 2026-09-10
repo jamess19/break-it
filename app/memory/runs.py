@@ -28,6 +28,7 @@ async def log_run(
     output = result.reply if result else ""
     if note:
         output = f"{output}\n[note] {note}".strip()
+    usage = result.usage if result else None
     async with _Session() as s, s.begin():
         s.add(
             AutomationRunRow(
@@ -37,6 +38,10 @@ async def log_run(
                 status="error" if error else "ok",
                 steps=result.steps if result else 0,
                 tool_calls=result.tool_calls if result else 0,
+                tokens=usage.total_tokens if usage else 0,
+                prompt_tokens=usage.prompt_tokens if usage else 0,
+                completion_tokens=usage.completion_tokens if usage else 0,
+                cost_usd=result.cost_usd if result else None,
                 output=output,
                 error=error,
             )

@@ -1,4 +1,4 @@
-"""nhận request → map sang domain → run() → map kết quả ra response.
+"""`/chat` — nhận request → map sang domain → run() → map kết quả ra response.
 
 api/ chỉ chạm engine.run() — không đụng nội tạng loop.
 """
@@ -12,7 +12,7 @@ from app.api.schemas import ChatRequest, ChatResponse
 from app.domain.message import Message
 from app.engine.run import run
 
-router = APIRouter()
+router = APIRouter(prefix="/chat", tags=["chat"])
 
 
 def _trace(messages: list[Message]) -> list[dict]:
@@ -30,7 +30,7 @@ def _trace(messages: list[Message]) -> list[dict]:
     return out
 
 
-@router.post("/chat", response_model=ChatResponse)
+@router.post("", response_model=ChatResponse)
 async def chat(
     req: ChatRequest,
     rt: Runtime = Depends(build_runtime),  # noqa: B008
@@ -49,5 +49,21 @@ async def chat(
         reply=result.reply,
         steps=result.steps,
         tool_calls=result.tool_calls,
+        usage=result.usage.model_dump() if result.usage else None,
+        cost_usd=result.cost_usd,
         trace=_trace(result.messages),
     )
+
+
+@router.get("/history")
+async def chat_history(
+    session_id: str,
+    rt: Runtime = Depends(build_runtime),  # noqa: B008
+) -> dict:
+    """History đã lưu của 1 session (Redis — tối đa SESSION_WINDOW message, TTL 7 ngày).
+
+    Frontend gọi lúc load để hiện lại hội thoại. Muốn xem session cũ hơn window /
+    hết TTL → cần archive vào bảng `messages` (Postgres, hiện chưa ghi).
+    """
+    msgs = await rt.session.read(session_id)
+    return {"session_id": session_id, "trace": _trace(msgs)}

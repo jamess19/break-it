@@ -1,0 +1,22 @@
+# Model để benchmark. `python -m eval` chạy tất cả; `--model <name>` chạy 1 cái.
+#   provider: openai  → OpenAI-compat (gồm Groq), key lấy từ env OPENAI_API_KEY
+#   provider: anthropic → chưa hỗ trợ (anthropic.py còn stub)
+# Giá tính từ app/util.py — model nào chưa có trong PRICES thì cột $ hiện "—".
+
+- name: gpt-oss-120b
+  provider: openai
+  base_url: https://api.groq.com/openai/v1
+  model: openai/gpt-oss-120b
+
+- name: gpt-oss-20b
+  provider: openai
+  base_url: https://api.groq.com/openai/v1
+  model: openai/gpt-oss-20b
+
+# Groq đã bỏ dòng llama-3.x. Model chat của account (2026-09): gpt-oss-120b/20b,
+# qwen3.x-27b, groq/compound (compound có tool built-in → nhiễu eval, không dùng).
+# Kiểm lại: curl .../v1/models -H "Authorization: Bearer <key>"
+- name: qwen3-27b
+  provider: openai
+  base_url: https://api.groq.com/openai/v1
+  model: qwen/qwen3.8-27b

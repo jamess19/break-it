@@ -24,3 +24,6 @@ arq
 pytest
 pytest-asyncio
 ruff
+
+# Eval
+pyyaml

@@ -5,37 +5,22 @@
 
 @host = http://127.0.0.1:8000
 
-### 1. Xem tool đang đăng ký (schema gửi cho model)
-GET {{host}}/debug/tools
-
-### 2. Chạy 1 tool trực tiếp — bỏ qua LLM, kiểm tra tool đúng
-POST {{host}}/debug/tool
-Content-Type: application/json
-
-{ "name": "get_time", "arguments": { "timezone": "Asia/Ho_Chi_Minh" } }
-
-### 3. 1 lần gọi model — xem model trả text hay tool_calls (chưa chạy loop)
-POST {{host}}/debug/llm
-Content-Type: application/json
-
-{ "message": "Mấy giờ rồi ở Việt Nam?", "use_tools": true, "use_system": true }
-
-### 4. Full agent — trả reply + trace từng step
+### 1. Full agent — trả reply + trace từng step
 POST {{host}}/chat
 Content-Type: application/json
 
-{ "session_id": "s1", "message": "Mấy giờ ở Việt Nam? Còn ở Tokyo?" }
+{ "session_id": "s1", "message": "Tuần này: viết báo cáo 6h hạn thứ 6, review 4 PR 2h. Xếp lịch giúp." }
 
-### 5. Lượt 2 cùng session — kiểm tra memory (Phần 4)
+### 2. Lượt 2 cùng session — kiểm tra memory (Phần 4)
 POST {{host}}/chat
 Content-Type: application/json
 
-{ "session_id": "s1", "message": "Tôi vừa hỏi gì?" }
+{ "session_id": "s1", "message": "Dời review PR sang thứ 5" }
 
-### 6. Xem history đang lưu của session
-GET {{host}}/debug/session/s1
+### 3. Xem history đang lưu của session (Redis)
+GET {{host}}/chat/history?session_id=s1
 
-### 7. Test không dùng tool (model trả lời thẳng)
+### 4. Test không dùng tool (model trả lời thẳng)
 POST {{host}}/chat
 Content-Type: application/json
 
