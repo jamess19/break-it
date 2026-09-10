@@ -1,0 +1,57 @@
+# Scenario xếp lịch tuần. Mỗi case: seed task vào DB → agent nhận "xếp lịch tuần này"
+# → đọc lại plan → chấm bằng scorers.py.
+#
+# deadline: mon|tue|wed|thu|fri|sat|sun  (neo vào thứ Hai tuần chạy eval) — deterministic.
+#           hoặc "+3d" (từ hôm nay), hoặc YYYY-MM-DD.
+# assert: {type: ..., soft: true}  → chỉ báo, không làm case FAIL.
+#   HARD (hợp đồng): plan_exists, all_p1_scheduled, nothing_after_deadline
+#   SOFT (chất lượng): no_day_over, total_hours_within — estimate do người, có thể vượt
+
+- id: basic_fit
+  # 3 việc, tổng 9h, thừa sức nhét dưới trần 6h/ngày → case dễ, model phải làm sạch
+  seed_tasks:
+    - {title: "Viết tài liệu API cho service order", estimate_hours: 4, deadline: fri, priority: 2}
+    - {title: "Review 3 PR backend", estimate_hours: 3, deadline: wed, priority: 2}
+    - {title: "Chuẩn bị slide demo sprint", estimate_hours: 2, deadline: thu, priority: 1}
+  asserts:
+    - {type: plan_exists}
+    - {type: all_tasks_scheduled}
+    - {type: nothing_after_deadline}
+    - {type: no_day_over, hours: 6}          # HARD: thừa chỗ, không lý do gì overload
+    - {type: total_hours_within, slack: 3}
+
+- id: split_big_task
+  # 1 task 10h > trần 6h/ngày → buộc phải tách nhiều ngày
+  seed_tasks:
+    - {title: "Migrate database sang schema mới", estimate_hours: 10, deadline: fri, priority: 1}
+    - {title: "Fix bug đăng nhập rớt session", estimate_hours: 2, deadline: tue, priority: 1}
+  asserts:
+    - {type: plan_exists}
+    - {type: all_p1_scheduled}
+    - {type: nothing_after_deadline}
+    - {type: no_day_over, hours: 6}          # HARD: 12h/tuần, tách ra là đủ
+
+- id: deadline_pressure
+  # báo cáo hạn thứ 3 phải nằm trước thứ 3; việc không deadline có thể đẩy sau
+  seed_tasks:
+    - {title: "Nộp báo cáo quý 3", estimate_hours: 5, deadline: tue, priority: 1}
+    - {title: "Học Kubernetes operator", estimate_hours: 6, priority: 3}
+    - {title: "Họp 1-1 với lead", estimate_hours: 1, deadline: wed, priority: 2}
+  asserts:
+    - {type: plan_exists}
+    - {type: all_p1_scheduled}
+    - {type: nothing_after_deadline}
+    - {type: no_day_over, hours: 6, soft: true}   # SOFT: dồn deadline sớm, chấp nhận
+
+- id: overload_prioritize
+  # 18h P1 + 10h P3 trong tuần ~30h capacity → P1 phải đủ, P3 rớt là ĐÚNG
+  seed_tasks:
+    - {title: "Ship feature thanh toán VNPay", estimate_hours: 12, deadline: fri, priority: 1}
+    - {title: "Viết test integration cho checkout", estimate_hours: 6, deadline: fri, priority: 1}
+    - {title: "Refactor module notification cũ", estimate_hours: 8, priority: 3}
+    - {title: "Đọc RFC service mesh", estimate_hours: 2, priority: 3}
+  asserts:
+    - {type: plan_exists}
+    - {type: all_p1_scheduled}                    # HARD: quá tải thì P1 phải thắng
+    - {type: nothing_after_deadline}
+    - {type: no_day_over, hours: 6, soft: true}   # SOFT: 18h P1 dồn deadline fri, 8h/ngày OK
