@@ -409,7 +409,7 @@
   (async function(){
     var sys = document.getElementById("sys"), txt = document.getElementById("systext");
     try{
-      var cfg = await api("GET","/debug/config");
+      var cfg = await api("GET","/health");
       sys.className = "sysline up";
       txt.textContent = (cfg.provider||"?") + " · " + (cfg.model||"?");
     }catch(e){
@@ -543,7 +543,7 @@
     if (clEl){
       var itemId = +clEl.dataset.item, willOn = !clEl.classList.contains("on");
       clEl.classList.toggle("on");
-      try{ await api("PATCH","/checklist/"+itemId, {done: willOn}); }
+      try{ await api("PATCH","/tasks/checklist/"+itemId, {done: willOn}); }
       catch(err){ clEl.classList.toggle("on"); showErr("tasks-err", err); }
       e.stopPropagation(); return;
     }

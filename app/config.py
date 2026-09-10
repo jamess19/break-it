@@ -8,6 +8,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    debug: bool = False  # True → lộ traceback ra response (chỉ dev)
+
     # provider: ollama (local) | anthropic | openai (dùng cho cả Groq/Gemini-compat)
     provider: str = "openai"
     model: str = "openai/gpt-oss-120b"

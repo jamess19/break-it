@@ -1,0 +1,27 @@
+# Không nhét vào image — giảm size + tránh lộ secret
+
+.git
+.gitignore
+.dockerignore
+Dockerfile
+
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+.mypy_cache
+*.egg-info
+
+# secret — key thật set qua env lúc deploy, KHÔNG bake vào image
+.env
+.env.local
+
+# dev-only, không cần lúc chạy
+.vscode
+.idea
+docs
+plans
+eval/results
+*.log

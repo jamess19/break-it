@@ -10,9 +10,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api.debug import router as debug_router
-from app.api.routes import router
-from app.api.tasks import router as tasks_router
+from app.api import api_router
+from app.config import settings
 
 log = logging.getLogger("agent")
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
@@ -24,9 +23,7 @@ def create_app() -> FastAPI:
         format="%(levelname)-7s %(name)s | %(message)s",
     )
     app = FastAPI(title="Personal Ops Agent")
-    app.include_router(router)
-    app.include_router(tasks_router)  # REST CRUD to-do list cho UI
-    app.include_router(debug_router)  # /debug/* — gỡ lỗi, tắt khi lên production
+    app.include_router(api_router)
 
     # UI preview — folder frontend/ (1 file HTML, gọi thẳng REST ở trên, cùng origin → khỏi CORS).
     app.mount("/app", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
@@ -35,14 +32,19 @@ def create_app() -> FastAPI:
     async def _ui() -> FileResponse:
         return FileResponse(FRONTEND_DIR / "index.html")
 
+    @app.get("/health", tags=["meta"])
+    async def _health() -> dict:
+        """Liveness — process còn sống + config đang nạp. (Chưa ping DB/Redis.)"""
+        return {"ok": True, "provider": settings.provider, "model": settings.model}
+
     @app.exception_handler(Exception)
-    async def _show_errors(request: Request, exc: Exception) -> JSONResponse:
-        """DEV: trả lỗi + traceback ra response cho dễ debug từ Postman.
-        Production thì bỏ handler này (đừng lộ nội tạng)."""
+    async def _on_error(request: Request, exc: Exception) -> JSONResponse:
         if isinstance(exc, HTTPException):
             raise exc
         log.exception("unhandled error on %s %s", request.method, request.url.path)
-        body: dict = {
+        if not settings.debug:
+            return JSONResponse(status_code=500, content={"error": "internal_error"})
+        body: dict = {  # dev: traceback ra response cho dễ debug
             "error": type(exc).__name__,
             "detail": str(exc),
             "traceback": traceback.format_exc().splitlines()[-14:],
