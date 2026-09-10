@@ -729,7 +729,7 @@
       var r = await api("POST","/plan/replan", {week_start: iso(curWeek)});
       if (r.plan) renderPlan(r.plan); else await loadPlan();
       var sub = document.getElementById("wk-sub");
-      sub.textContent = r.tool_calls + " tool calls · " + r.steps + " steps";
+      sub.textContent = r.tool_calls + " tool calls · " + r.steps + " steps" + fmtUsage(r);
       if (r.reply){
         var n = document.getElementById("plan-note");
         n.hidden = false; n.textContent = "Agent: " + r.reply;
@@ -745,6 +745,14 @@
   var chatStat = document.getElementById("chat-stat");
 
   function scrollChat(){ document.querySelector("main").scrollTop = document.querySelector("main").scrollHeight; }
+
+  // token + cost của 1 lần gọi agent (Phase 3a). cost_usd null = model chưa có giá trong app/util.py
+  function fmtUsage(r){
+    var tok = r.usage ? r.usage.total_tokens + " tok" : "";
+    var cost = r.cost_usd != null ? "$" + r.cost_usd.toFixed(5) : "";
+    var parts = [tok, cost].filter(Boolean);
+    return parts.length ? " · " + parts.join(" / ") : "";
+  }
 
   function addMsg(who, text){
     var m = document.createElement("div");
@@ -779,6 +787,23 @@
     bubble.appendChild(det);
   }
 
+  // load lại hội thoại đã lưu khi mở trang (Redis giữ ~SESSION_WINDOW message, TTL 7 ngày)
+  async function loadHistory(){
+    try{
+      var r = await api("GET", "/chat/history?session_id=" + encodeURIComponent(SID));
+      var conv = (r.trace || []).filter(function(s){
+        return s.role === "user" ||
+          (s.role === "assistant" && s.content && !(s.tool_calls || []).length);
+      });
+      if (!conv.length) return;                     // chưa có gì → giữ lời chào mặc định
+      stream.innerHTML = "";
+      conv.forEach(function(s){
+        addMsg(s.role === "user" ? "user" : "agent", s.content);
+      });
+      scrollChat();
+    }catch(e){ /* session trống / Redis lỗi — giữ nguyên lời chào */ }
+  }
+
   document.getElementById("composer").addEventListener("submit", async function(e){
     e.preventDefault();
     var q = input.value.trim();
@@ -796,7 +821,7 @@
       var m = addMsg("agent", r.reply || "(không có trả lời)");
       renderTrace(m.querySelector(".bubble"), r.trace);
       chatStat.textContent = r.tool_calls + " tool calls · " + r.steps + " steps · " +
-        ((performance.now()-t0)/1000).toFixed(1) + "s";
+        ((performance.now()-t0)/1000).toFixed(1) + "s" + fmtUsage(r);
       scrollChat();
       loaded.tasks = false; loaded.plan = false; // dữ liệu có thể đã đổi
     }catch(err){
@@ -807,5 +832,6 @@
 
   /* ---------- boot ---------- */
   go("tasks");
+  loadHistory();
 })();
 </script>

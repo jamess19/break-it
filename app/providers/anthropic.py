@@ -17,6 +17,7 @@ from typing import Any
 
 from app.domain.message import Message, Role
 from app.domain.tool import ToolCall, ToolDef
+from app.util import clean_arguments
 
 ANTHROPIC_VERSION = "2023-06-01"
 DEFAULT_MAX_TOKENS = 1024
@@ -31,7 +32,7 @@ class AnthropicProvider:
         base_url: str = "https://api.anthropic.com/v1",
         timeout: float = 120.0,
     ) -> None:
-        self._model = model
+        self.model = model
         self._api_key = api_key
         self._base_url = base_url.rstrip("/")
         self._timeout = timeout
@@ -39,7 +40,7 @@ class AnthropicProvider:
     async def chat(self, messages: list[Message], tools: list[ToolDef]) -> Message:
         system, convo = self._split_system(messages)  # điểm khác #3
         payload: dict[str, Any] = {
-            "model": self._model,
+            "model": self.model,
             "max_tokens": DEFAULT_MAX_TOKENS,  # điểm khác #2
             "messages": [self._message_to_dict(m) for m in convo],
         }
@@ -94,7 +95,16 @@ class AnthropicProvider:
 
     @staticmethod
     def _dict_to_message(resp: dict[str, Any]) -> Message:
-        """dict Anthropic TRẢ VỀ -> domain.Message."""
+        """dict Anthropic TRẢ VỀ -> domain.Message.
+
+        Khi implement chat():
+          - `resp["usage"]` → domain.Usage: `input_tokens` → prompt_tokens,
+            `output_tokens` → completion_tokens, total = input + output
+            (Anthropic KHÔNG trả sẵn `total_tokens`).
+          - `message.cost_usd`: có cache-tier (`cache_read_input_tokens` −90%,
+            `cache_creation_input_tokens` +25%) → tính riêng ở `_cost()`, đừng
+            dùng thẳng `util.cost` (bảng đó chỉ giá cơ bản in/out).
+        """
         text_parts: list[str] = []
         tool_calls: list[ToolCall] = []
         for block in resp.get("content", []):
@@ -106,7 +116,7 @@ class AnthropicProvider:
                     ToolCall(
                         id=block.get("id", ""),
                         name=block.get("name", ""),
-                        arguments=block.get("input") or {},  # đã là dict (điểm khác #5)
+                        arguments=clean_arguments(block.get("input") or {}),  # dict (điểm khác #5)
                     )
                 )
         return Message(

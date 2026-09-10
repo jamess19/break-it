@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from app.domain.message import Message
+from app.domain.message import Message, Usage
 
 
 class RunContext(BaseModel):
@@ -22,3 +22,5 @@ class AgentResult(BaseModel):
     messages: list[Message] = Field(default_factory=list)
     steps: int = 0
     tool_calls: int = 0
+    usage: Usage | None = None  # tổng token qua các step; None = provider không báo
+    cost_usd: float | None = None  # tổng chi phí; None = provider không tính được step nào

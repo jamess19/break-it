@@ -6,8 +6,10 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
+
 from app.domain.agent import RunContext
-from app.domain.message import Message, Role
+from app.domain.message import Message, Role, Usage
 from app.domain.tool import ToolCall, ToolDef, ToolResult
 from app.engine.loop import run_loop
 from app.tools.registry import ToolRegistry
@@ -27,7 +29,11 @@ class EchoTool:
 
 
 class ScriptedProvider:
-    """Lượt 1-2 xin gọi tool, lượt 3 trả lời cuối."""
+    """Lượt 1-2 xin gọi tool, lượt 3 trả lời cuối. Mỗi lượt báo usage + cost cố định."""
+
+    model = "scripted"
+    STEP_USAGE = Usage(prompt_tokens=10, completion_tokens=5, total_tokens=15)
+    STEP_COST = 0.001
 
     def __init__(self) -> None:
         self._turn = 0
@@ -38,8 +44,12 @@ class ScriptedProvider:
             return Message(
                 role=Role.assistant,
                 tool_calls=[ToolCall(id=f"c{self._turn}", name="echo", arguments={"text": "hi"})],
+                usage=self.STEP_USAGE,
+                cost_usd=self.STEP_COST,
             )
-        return Message(role=Role.assistant, content="xong")
+        return Message(
+            role=Role.assistant, content="xong", usage=self.STEP_USAGE, cost_usd=self.STEP_COST
+        )
 
 
 def test_loop_runs_two_tool_calls_then_stops() -> None:
@@ -58,3 +68,9 @@ def test_loop_runs_two_tool_calls_then_stops() -> None:
     assert result.reply == "xong"
     assert result.tool_calls == 2
     assert result.steps == 3
+    # usage + cost cộng dồn qua 3 lượt provider.chat
+    assert result.usage is not None
+    assert result.usage.total_tokens == 45
+    assert result.usage.prompt_tokens == 30
+    assert result.usage.completion_tokens == 15
+    assert result.cost_usd == pytest.approx(0.003)

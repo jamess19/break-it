@@ -71,7 +71,10 @@ class AutomationRunRow(Base):
     status: Mapped[str] = mapped_column(Text, default="running")  # running | ok | error
     steps: Mapped[int] = mapped_column(Integer, default=0)
     tool_calls: Mapped[int] = mapped_column(Integer, default=0)
-    tokens: Mapped[int] = mapped_column(Integer, default=0)
+    tokens: Mapped[int] = mapped_column(Integer, default=0)  # tổng (= prompt + completion)
+    prompt_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    completion_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[float | None] = mapped_column(Numeric(12, 6), nullable=True)  # None = model chưa có giá
     output: Mapped[str] = mapped_column(Text, default="")
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
 

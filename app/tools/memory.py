@@ -37,7 +37,6 @@ class Recall:
                     "query": {"type": "string", "description": "chủ đề cần nhớ lại (mô tả tự do)"},
                     "category": {"type": "string", "description": _CATEGORY_DESC},
                 },
-                "required": [],
             },
         )
 

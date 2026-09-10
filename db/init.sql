@@ -36,7 +36,10 @@ CREATE TABLE IF NOT EXISTS automation_runs (
     status       text        NOT NULL DEFAULT 'running',
     steps        integer     NOT NULL DEFAULT 0,
     tool_calls   integer     NOT NULL DEFAULT 0,
-    tokens       integer     NOT NULL DEFAULT 0,
+    tokens       integer     NOT NULL DEFAULT 0,   -- tổng = prompt + completion
+    prompt_tokens     integer NOT NULL DEFAULT 0,
+    completion_tokens integer NOT NULL DEFAULT 0,
+    cost_usd     numeric(12,6),                    -- NULL = model chưa có trong app/pricing.py
     output       text        NOT NULL DEFAULT '',
     error        text
 );
