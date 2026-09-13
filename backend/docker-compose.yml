@@ -1,0 +1,36 @@
+# Hạ tầng lưu trữ cho dev. `docker compose up -d`
+#   Postgres : localhost:5433  (ops / ops / ops_agent) — 5433 để né Postgres native trên 5432
+#   Redis    : localhost:6379
+# Image vẫn là pgvector/pgvector (superset của postgres:16) — extension `vector`
+# không còn dùng (facts lưu phẳng), giữ image để khỏi rebuild volume.
+
+name: project  # khoá cứng — mặc định lấy theo tên thư mục chứa file này, nếu không khoá thì
+# việc dời file này (vd root -> backend/) sẽ bị Compose coi là project MỚI, không thấy
+# container/volume cũ (data KHÔNG mất, chỉ là Compose "quên" tham chiếu tới nó).
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ops
+      POSTGRES_PASSWORD: ops
+      POSTGRES_DB: ops_agent
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ops -d ops_agent"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "60", "1"]
+
+volumes:
+  pgdata:
