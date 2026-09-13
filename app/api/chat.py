@@ -1,6 +1,6 @@
 """`/chat` — nhận request → map sang domain → run() → map kết quả ra response.
 
-api/ chỉ chạm engine.run() — không đụng nội tạng loop.
+api/ chỉ chạm orchestration.graph.run() — không đụng nội tạng graph/loop.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends
 from app.agents._runtime import trace
 from app.api.deps import Runtime, build_runtime
 from app.api.schemas import ChatRequest, ChatResponse
-from app.engine.run import run
+from app.orchestration.graph import run
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -24,8 +24,7 @@ async def chat(
     result = await run(
         session_id=req.session_id,
         user_message=req.message,
-        provider=rt.provider,
-        registry=rt.registry,
+        graph=rt.graph,
         session=rt.session,
         trigger="api",
     )
@@ -36,7 +35,9 @@ async def chat(
         tool_calls=result.tool_calls,
         usage=result.usage.model_dump() if result.usage else None,
         cost_usd=result.cost_usd,
-        trace=trace(result.messages),
+        # multi-agent: result.messages giờ chỉ có cấp orchestrator (user + final assistant),
+        # chi tiết tool-call từng bước nằm ở worker_trace (xem domain/agent.py::AgentResult)
+        trace=result.worker_trace or trace(result.messages),
     )
 
 

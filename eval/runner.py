@@ -1,4 +1,4 @@
-"""Chạy 1 case: cô lập DB → seed → engine.run() → đọc plan → chấm.
+"""Chạy 1 case: cô lập DB → seed → orchestration.graph.run() → đọc plan → chấm.
 
 DB: TEST_POSTGRES_DSN (default = POSTGRES_DSN). TRUNCATE các bảng liên quan giữa
 mỗi case → mỗi case bắt đầu từ rỗng. CẢNH BÁO: dùng chung DB `ops_agent` thì eval
@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.core.config import settings
 from app.domain.message import Usage
-from app.engine.run import run
+from app.orchestration.graph import build_graph, run
 from app.providers.openai import OpenAIProvider
 from app.services.store import FactStore
 from app.services.tasks import TaskRepo
@@ -110,9 +110,11 @@ async def run_case(case: Case, provider: OpenAIProvider, engine) -> CaseResult:
             source="eval",
         )
 
-    registry = ToolRegistry()
-    register_task_tools(registry, repo)
-    register_memory_tools(registry, store)
+    planning_registry = ToolRegistry()
+    register_task_tools(planning_registry, repo)
+    register_memory_tools(planning_registry, store)
+    external_registry = ToolRegistry()  # rỗng — eval không cần MCP thật (xem Phase 4)
+    graph = build_graph(provider, planning_registry, external_registry)
 
     msg = case.message or (
         f"Xếp lịch làm việc cho tuần bắt đầu {base}. Các việc đã có sẵn trong hệ thống — "
@@ -124,8 +126,7 @@ async def run_case(case: Case, provider: OpenAIProvider, engine) -> CaseResult:
         res = await run(
             session_id=f"eval:{case.id}",
             user_message=msg,
-            provider=provider,
-            registry=registry,
+            graph=graph,
             session=_MemSession(),
             trigger="api",
         )

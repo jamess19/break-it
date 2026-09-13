@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from app.api.deps import build_runtime
-from app.engine.run import run
+from app.orchestration.graph import run
 
 
 async def handle_event(payload: dict) -> None:
@@ -12,8 +12,7 @@ async def handle_event(payload: dict) -> None:
     await run(
         session_id=session_id,
         user_message=message,
-        provider=rt.provider,
-        registry=rt.registry,
+        graph=rt.graph,
         session=rt.session,
         trigger="webhook",
     )

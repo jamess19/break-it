@@ -1,7 +1,7 @@
-"""wiring: chọn provider, dựng registry, mở kết nối memory + MCP.
+"""wiring: chọn provider, dựng graph (orchestrator + worker), mở kết nối memory + MCP.
 
 Chỗ DUY NHẤT biết implementation cụ thể nào đang chạy. Đổi provider / Redis / Postgres
-ở đây — engine/loop.py không sửa 1 dòng.
+ở đây — app/agents/, app/orchestration/ không sửa 1 dòng.
 """
 
 from __future__ import annotations
@@ -11,7 +11,9 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
+from app.agents.planning.tools import build_registry as build_planning_registry
 from app.core.config import settings
+from app.orchestration.graph import build_graph
 from app.providers.base import LLMProvider
 from app.services.base import SessionMemory
 from app.services.session import RedisSession
@@ -20,6 +22,8 @@ from app.services.tasks import TaskRepo
 from app.tools.registry import ToolRegistry
 
 if TYPE_CHECKING:
+    from langgraph.graph.state import CompiledStateGraph
+
     from app.mcp_client.manager import MCPClient
 
 log = logging.getLogger("deps")
@@ -45,28 +49,13 @@ def build_provider() -> LLMProvider:
     raise ValueError(f"Unknown provider: {settings.provider!r}")
 
 
-def build_registry(tasks: TaskRepo, store: FactStore) -> ToolRegistry:
-    registry = ToolRegistry()
-    from app.tools.memory import register_memory_tools
-    from app.tools.tasks import register_task_tools
-
-    register_task_tools(registry, tasks)  # 9 tool quản lý việc + kế hoạch
-    register_memory_tools(registry, store)  # recall / remember (Phần 5)
-    # connector thật (Gmail, Calendar, Slack) → đăng ký ở đây khi có. MCP nạp riêng,
-    # xem setup_mcp() — cần await nên không gọi được trong hàm sync này.
-    return registry
-
-
 async def setup_mcp() -> list[MCPClient]:
     """Connect tất cả server khai báo trong `mcp.json`. Gọi 1 lần lúc app khởi động
     (xem lifespan trong main.py). Trả list client ĐÃ CONNECT để đăng ký tool + đóng lúc
     shutdown.
 
-    KHÔNG tự đăng ký vào registry nào — đó là việc của `agents/external/tools.py::build_registry`
-    (xem Phase 2 của plans/260913-1646-langgraph-orchestrator-worker/). Tạm thời (tới khi
-    Phase 4 nối graph xong), `main.py::_lifespan` tự đăng ký các client này vào
-    `Runtime.registry` cũ để app không bị vỡ giữa chừng khi các phase multi-agent chưa hoàn tất.
-    """
+    KHÔNG tự đăng ký vào registry nào — `main.py::_lifespan` đăng ký vào
+    `Runtime.external_registry` sau khi connect xong (xem `build_runtime`)."""
     from app.mcp_client.manager import connect_all
     from app.mcp_client.registry import load_mcp_servers
 
@@ -76,7 +65,8 @@ async def setup_mcp() -> list[MCPClient]:
 @dataclass
 class Runtime:
     provider: LLMProvider
-    registry: ToolRegistry
+    graph: CompiledStateGraph
+    external_registry: ToolRegistry  # expose để main.py::_lifespan đăng ký MCP client vào
     session: SessionMemory
     store: FactStore
     tasks: TaskRepo
@@ -84,12 +74,25 @@ class Runtime:
 
 @lru_cache(maxsize=1)
 def build_runtime() -> Runtime:
-    """Dựng 1 lần, dùng lại mọi request (FastAPI Depends) — giữ connection pool."""
+    """Dựng 1 lần, dùng lại mọi request (FastAPI Depends) — giữ connection pool.
+
+    `external_registry` cố tình RỖNG lúc trả về: connect MCP cần `await`, không gọi được
+    trong hàm sync này — `main.py::_lifespan` điền tool MCP vào SAU, đăng ký thẳng vào
+    ĐÚNG object này (không tạo registry mới). An toàn dù graph đã compile trước đó:
+    `ToolRegistry` mutable, và `app/agents/_runtime.py::run_loop()` đọc `registry.defs()`
+    LIVE mỗi lượt gọi (không cache lúc compile) — tool thêm sau vẫn được LLM thấy ở lượt kế
+    tiếp. Đã đọc lại source để xác nhận, không giả định (xem
+    plans/260913-1646-langgraph-orchestrator-worker/phase-04-entrypoint-migration.md
+    Risk Assessment)."""
     tasks = TaskRepo(settings.postgres_dsn)
     store = FactStore(settings.postgres_dsn, top_k=settings.fact_top_k)
+    provider = build_provider()
+    external_registry = ToolRegistry()
+    graph = build_graph(provider, build_planning_registry(tasks, store), external_registry)
     return Runtime(
-        provider=build_provider(),
-        registry=build_registry(tasks, store),
+        provider=provider,
+        graph=graph,
+        external_registry=external_registry,
         session=RedisSession(
             settings.redis_url,
             window=settings.session_window,

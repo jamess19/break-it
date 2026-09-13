@@ -20,6 +20,9 @@ class AgentResult(BaseModel):
     session_id: str
     reply: str
     messages: list[Message] = Field(default_factory=list)
+    worker_trace: list[dict] = Field(default_factory=list)  # chi tiết tool-call của worker vừa
+    # chạy (multi-agent) — messages ở trên giờ chỉ có cấp orchestrator (user + final assistant),
+    # không còn đủ để debug từng bước tool-call như trước graph; xem docs/langgraph-plan.md mục 3
     steps: int = 0
     tool_calls: int = 0
     usage: Usage | None = None  # tổng token qua các step; None = provider không báo

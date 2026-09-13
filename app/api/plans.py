@@ -1,6 +1,6 @@
 """`/plan` — xem / sửa kế hoạch tuần. `POST /plan/replan` nhờ LLM xếp lại.
 
-`replan` dùng cùng `engine.run()` như `/chat` — chỉ khác input source.
+`replan` dùng cùng `orchestration.graph.run()` như `/chat` — chỉ khác input source.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from app.api.deps import Runtime, build_runtime
 from app.domain.task import PlanSlot, WeekPlan
-from app.engine.run import run
+from app.orchestration.graph import run
 from app.services.tasks import monday_of
 
 router = APIRouter(prefix="/plan", tags=["plans"])
@@ -65,8 +65,7 @@ async def replan(
     result = await run(
         session_id=f"replan:{week}",
         user_message=msg,
-        provider=rt.provider,
-        registry=rt.registry,
+        graph=rt.graph,
         session=rt.session,
         trigger="api",
     )

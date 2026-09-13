@@ -1,4 +1,4 @@
-"""Đăng ký cron (arq) → gọi engine.run(). KHÔNG build execution path song song.
+"""Đăng ký cron (arq) → gọi orchestration.graph.run(). KHÔNG build execution path song song.
 
 Phần 7 — ✅ 1 cron chạy agent không cần người, output được lưu (automation_runs).
 Cron `daily`: roll-over việc chưa xong sang hôm nay → agent ra "focus hôm nay" + cảnh báo deadline.
@@ -9,7 +9,7 @@ from datetime import date, timedelta
 from typing import ClassVar
 
 from app.api.deps import build_runtime
-from app.engine.run import run
+from app.orchestration.graph import run
 from app.services.runs import log_run
 
 DAILY_PROMPT = (
@@ -26,8 +26,7 @@ async def daily(_ctx: dict) -> None:
     result = await run(
         session_id="cron:daily",
         user_message=DAILY_PROMPT,
-        provider=rt.provider,
-        registry=rt.registry,
+        graph=rt.graph,
         session=rt.session,
         trigger="cron",
     )
