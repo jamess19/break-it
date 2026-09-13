@@ -8,10 +8,10 @@ import asyncio
 
 import pytest
 
+from app.agents._runtime import run_loop
 from app.domain.agent import RunContext
 from app.domain.message import Message, Role, Usage
 from app.domain.tool import ToolCall, ToolDef, ToolResult
-from app.engine.loop import run_loop
 from app.tools.registry import ToolRegistry
 
 

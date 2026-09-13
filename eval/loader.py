@@ -12,13 +12,13 @@ from pathlib import Path
 
 import yaml
 
-from app.memory.tasks import monday_of
+from app.services.tasks import monday_of
 
 _WEEKDAYS = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
 
 
 def week_monday() -> dt.date:
-    return monday_of(dt.date.today())  # noqa: DTZ011 — giờ địa phương, như app/memory/tasks.py
+    return monday_of(dt.date.today())  # noqa: DTZ011 — giờ địa phương, như app/services/tasks.py
 
 
 def resolve_day(spec: str | int | None, base: dt.date) -> dt.date | None:

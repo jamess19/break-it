@@ -15,7 +15,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.domain.task import ChecklistItem, PlanSlot, Task, TaskStatus, WeekPlan
-from app.memory.tables import ChecklistItemRow, PlanRow, PlanSlotRow, TaskRow
+from app.services.tables import ChecklistItemRow, PlanRow, PlanSlotRow, TaskRow
 
 _TASK_FIELDS = {
     "title",

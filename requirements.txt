@@ -8,7 +8,7 @@ pydantic-settings
 anthropic
 openai
 
-# Memory
+# Services (Postgres/Redis persistence)
 sqlalchemy[asyncio]
 asyncpg
 redis
@@ -16,6 +16,9 @@ redis
 # Tools
 mcp
 httpx
+
+# Orchestration
+langgraph
 
 # Automations
 arq

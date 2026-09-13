@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.domain.tool import ToolDef, ToolResult
-from app.memory.store import FactStore
+from app.services.store import FactStore
 
 _CATEGORY_DESC = (
     "Nhóm fact, nếu biết: 'planning' (thói quen xếp lịch), 'preference', hoặc tên tự đặt. "

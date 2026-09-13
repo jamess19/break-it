@@ -6,7 +6,7 @@ Kiểm ràng buộc cứng của kế hoạch (trần giờ/ngày, deadline) + m
 from datetime import date
 
 from app.domain.task import PlanSlot, Task
-from app.memory.tasks import monday_of
+from app.services.tasks import monday_of
 from app.tools.tasks import DAILY_CAPACITY_HOURS, _validate_plan
 
 

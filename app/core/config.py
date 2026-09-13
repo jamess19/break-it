@@ -27,5 +27,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     postgres_dsn: str = "postgresql+asyncpg://ops:ops@localhost:5433/ops_agent"
 
+    mcp_config_path: str = "mcp.json"  # Phần 6 — danh sách MCP server (stdio); không có file = bỏ qua
+
 
 settings = Settings()

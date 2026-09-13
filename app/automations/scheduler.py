@@ -10,7 +10,7 @@ from typing import ClassVar
 
 from app.api.deps import build_runtime
 from app.engine.run import run
-from app.memory.runs import log_run
+from app.services.runs import log_run
 
 DAILY_PROMPT = (
     "Dựa vào get_plan của tuần này, tóm tắt việc cần làm HÔM NAY, tối đa 5 gạch đầu dòng. "

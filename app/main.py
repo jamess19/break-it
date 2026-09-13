@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 import traceback
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -11,10 +13,24 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import api_router
-from app.config import settings
+from app.api.deps import build_runtime, setup_mcp
+from app.core.config import settings
 
 log = logging.getLogger("agent")
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+    """Connect MCP server 1 lần lúc startup (cần `await`, không gọi được trong
+    `build_runtime()` sync) — tool MCP đăng ký vào registry đã cache sẵn, mọi
+    request sau (Depends(build_runtime)) thấy đủ tool. Đóng lại lúc shutdown."""
+    rt = build_runtime()
+    mcp_clients = await setup_mcp(rt.registry)
+    log.info("startup: %d tool đăng ký (%d server MCP)", len(rt.registry.defs()), len(mcp_clients))
+    yield
+    for client in mcp_clients:
+        await client.close()
 
 
 def create_app() -> FastAPI:
@@ -22,7 +38,7 @@ def create_app() -> FastAPI:
         level=logging.INFO,
         format="%(levelname)-7s %(name)s | %(message)s",
     )
-    app = FastAPI(title="Personal Ops Agent")
+    app = FastAPI(title="Personal Ops Agent", lifespan=_lifespan)
     app.include_router(api_router)
 
     # UI preview — folder frontend/ (1 file HTML, gọi thẳng REST ở trên, cùng origin → khỏi CORS).

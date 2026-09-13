@@ -16,7 +16,7 @@ from __future__ import annotations
 from sqlalchemy import func, nullslast, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from app.memory.tables import FactRow
+from app.services.tables import FactRow
 
 
 class FactStore:

@@ -9,9 +9,9 @@ from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from app.config import settings
+from app.core.config import settings
 from app.domain.agent import AgentResult
-from app.memory.tables import AutomationRunRow
+from app.services.tables import AutomationRunRow
 
 _engine = create_async_engine(settings.postgres_dsn)
 _Session = async_sessionmaker(_engine, expire_on_commit=False)

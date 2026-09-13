@@ -1,5 +1,5 @@
 -- Chạy 1 lần khi container Postgres khởi tạo (docker-compose mount vào initdb.d).
--- Khớp với app/memory/tables.py. Khi schema tiến hoá nhiều → chuyển sang Alembic.
+-- Khớp với app/services/tables.py. Khi schema tiến hoá nhiều → chuyển sang Alembic.
 
 -- Bộ nhớ dài hạn (Phần 5) — fact phẳng, KHÔNG vector ------------------------
 -- Fact cá nhân ít + cần đầy đủ → lọc theo meta.category / load-all, không RAG.

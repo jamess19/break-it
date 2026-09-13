@@ -11,7 +11,7 @@ from typing import Any
 
 from app.domain.task import PlanSlot, Task
 from app.domain.tool import ToolDef, ToolResult
-from app.memory.tasks import TaskRepo
+from app.services.tasks import TaskRepo
 from app.tools.registry import ToolRegistry
 
 DAILY_CAPACITY_HOURS = 6.0  # trần giờ làm việc/ngày khi validate kế hoạch

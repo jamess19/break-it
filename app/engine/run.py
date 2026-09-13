@@ -4,23 +4,19 @@ KHÔNG có execution path riêng cho automation. Trigger chỉ là input source 
 """
 from __future__ import annotations
 
+from pathlib import Path
+
+from app.agents._runtime import run_loop
 from app.domain.agent import AgentResult, RunContext
 from app.domain.message import Message, Role
-from app.engine.loop import run_loop
-from app.memory.base import SessionMemory
 from app.providers.base import LLMProvider
+from app.services.base import SessionMemory
 from app.tools.registry import ToolRegistry
 
 # Phần 3 — prompt engineering đủ để agent biết khi nào gọi tool, khi nào dừng.
-SYSTEM_PROMPT = (
-    "Bạn là trợ lý quản lý công việc cá nhân. Dùng tool để đọc/ghi task và kế hoạch "
-    "thật, KHÔNG được đoán dữ liệu. "
-    "Khi user liệt kê nhiều việc, tách từng việc và gọi add_task cho mỗi việc. "
-    "Khi user nhờ xếp lịch tuần: gọi recall lấy thói quen, list_tasks lấy việc chưa "
-    "xong, rồi save_plan với các slot theo ngày — tôn trọng trần ~6h làm việc/ngày "
-    "và deadline. "
-    "Khi đã đủ thông tin, trả lời thẳng bằng tiếng Việt, ngắn gọn, KHÔNG gọi thêm tool."
-)
+# Prompt sống trong prompts/system.md, không phải string Python — version như config,
+# sửa prompt không phải đụng code, đọc lại được không cần biết Python.
+SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "system.md").read_text(encoding="utf-8").strip()
 
 
 async def run(

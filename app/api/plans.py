@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from app.api.deps import Runtime, build_runtime
 from app.domain.task import PlanSlot, WeekPlan
 from app.engine.run import run
-from app.memory.tasks import monday_of
+from app.services.tasks import monday_of
 
 router = APIRouter(prefix="/plan", tags=["plans"])
 

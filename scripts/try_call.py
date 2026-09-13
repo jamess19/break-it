@@ -11,7 +11,7 @@ import asyncio
 import sys
 
 from app.api.deps import build_provider
-from app.config import settings
+from app.core.config import settings
 from app.domain.message import Message, Role
 
 

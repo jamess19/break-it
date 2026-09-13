@@ -15,12 +15,12 @@ from dataclasses import dataclass
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from app.config import settings
+from app.core.config import settings
 from app.domain.message import Usage
 from app.engine.run import run
-from app.memory.store import FactStore
-from app.memory.tasks import TaskRepo
 from app.providers.openai import OpenAIProvider
+from app.services.store import FactStore
+from app.services.tasks import TaskRepo
 from app.tools.memory import register_memory_tools
 from app.tools.registry import ToolRegistry
 from app.tools.tasks import register_task_tools
