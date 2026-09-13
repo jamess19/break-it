@@ -107,3 +107,22 @@ class MCPClient:
         if self._session is None:
             raise RuntimeError(f"MCPClient '{self.name}' chưa connect()")
         return self._session
+
+
+async def connect_all(servers: dict[str, dict[str, Any]]) -> list[MCPClient]:
+    """Connect từng server trong `mcp.json` (xem registry.py::load_mcp_servers).
+
+    1 server lỗi (chưa cài, network chết…) KHÔNG được kéo sập cả app — agent vẫn chạy
+    tốt chỉ với tool native, chỉ thiếu tool của server đó. Trả list client ĐÃ CONNECT để
+    gọi tiếp `register_into()` — hàm này KHÔNG tự đăng ký vào registry nào (đó là việc
+    của agents/comms/tools.py::build_registry, không phải của mcp_client/).
+    """
+    clients: list[MCPClient] = []
+    for name, cfg in servers.items():
+        client = MCPClient(name, cfg["command"], cfg.get("args"), cfg.get("env"))
+        try:
+            await client.connect()
+            clients.append(client)
+        except Exception:
+            log.exception("MCP '%s' kết nối lỗi — bỏ qua, agent chạy tiếp không có tool này", name)
+    return clients

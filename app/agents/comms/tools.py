@@ -1,6 +1,6 @@
 """Bind tool MCP cho worker `comms` — KHÔNG tự implement tool.
 
-Điền ở Phase 2 — xem plans/260913-1646-langgraph-orchestrator-worker/phase-02-worker-agents.md
+`comms` sở hữu tool MCP (time_*, lark_* sau này) — xem docs/langgraph-plan.md mục 5.
 """
 
 from __future__ import annotations
@@ -13,5 +13,8 @@ if TYPE_CHECKING:
     from app.mcp_client.manager import MCPClient
 
 
-def build_registry(mcp_clients: list[MCPClient]) -> ToolRegistry:
-    raise NotImplementedError("Điền ở Phase 2")
+async def build_registry(mcp_clients: list[MCPClient]) -> ToolRegistry:
+    registry = ToolRegistry()
+    for client in mcp_clients:
+        await client.register_into(registry)
+    return registry

@@ -78,3 +78,34 @@ async def run_loop(
         usage=usage,
         cost_usd=cost_usd,
     )
+
+
+def trace(messages: list[Message]) -> list[dict]:
+    """domain.Message[] → list[dict] gọn để đọc trong Postman/debug.
+
+    Dùng chung bởi mọi agent (đọc kết quả `run_loop()` để trả `worker_trace` trong
+    GraphState — xem docs/langgraph-plan.md mục 3) VÀ `api/chat.py` (đọc history session).
+    Trước đây là `_trace()` riêng trong `api/chat.py` — chuyển vào đây vì cả 2 nơi đều cần,
+    và `api/` không phải nơi các agent nên import ngược lại.
+    """
+    out: list[dict] = []
+    for m in messages:
+        row: dict = {"role": m.role.value, "content": m.content}
+        if m.tool_calls:
+            row["tool_calls"] = [
+                {"name": c.name, "arguments": c.arguments} for c in m.tool_calls
+            ]
+        if m.tool_result is not None:
+            row["tool_error"] = m.tool_result.is_error
+        out.append(row)
+    return out
+
+
+def add_cost(a: float | None, b: float | None) -> float | None:
+    """Cộng 2 `cost_usd` an toàn với `None` ("chưa đo được", KHÔNG phải 0 — xem CLAUDE.md
+    mục Usage/cost tracking). `None` + số = số đó, `None` + `None` = `None`."""
+    if a is None:
+        return b
+    if b is None:
+        return a
+    return a + b

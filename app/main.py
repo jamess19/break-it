@@ -24,9 +24,15 @@ FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 async def _lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Connect MCP server 1 lần lúc startup (cần `await`, không gọi được trong
     `build_runtime()` sync) — tool MCP đăng ký vào registry đã cache sẵn, mọi
-    request sau (Depends(build_runtime)) thấy đủ tool. Đóng lại lúc shutdown."""
+    request sau (Depends(build_runtime)) thấy đủ tool. Đóng lại lúc shutdown.
+
+    `setup_mcp()` giờ chỉ CONNECT (xem docs/langgraph-plan.md — Phase 2 của plan LangGraph),
+    không tự đăng ký vào registry nào — đăng ký vào `rt.registry` (đường single-agent cũ) tạm
+    làm Ở ĐÂY cho tới khi Phase 4 thay bằng `agents/comms/tools.py::build_registry()`."""
     rt = build_runtime()
-    mcp_clients = await setup_mcp(rt.registry)
+    mcp_clients = await setup_mcp()
+    for client in mcp_clients:
+        await client.register_into(rt.registry)
     log.info("startup: %d tool đăng ký (%d server MCP)", len(rt.registry.defs()), len(mcp_clients))
     yield
     for client in mcp_clients:

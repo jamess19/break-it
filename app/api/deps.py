@@ -57,26 +57,20 @@ def build_registry(tasks: TaskRepo, store: FactStore) -> ToolRegistry:
     return registry
 
 
-async def setup_mcp(registry: ToolRegistry) -> list[MCPClient]:
-    """Connect từng server trong `mcp.json` + đăng ký tool vào registry. Gọi 1 lần
-    lúc app khởi động (xem lifespan trong main.py). Trả list client để đóng lúc shutdown.
+async def setup_mcp() -> list[MCPClient]:
+    """Connect tất cả server khai báo trong `mcp.json`. Gọi 1 lần lúc app khởi động
+    (xem lifespan trong main.py). Trả list client ĐÃ CONNECT để đăng ký tool + đóng lúc
+    shutdown.
 
-    1 server lỗi (server chưa cài, network chết…) KHÔNG được kéo sập cả app —
-    agent vẫn chạy tốt chỉ với tool native, chỉ thiếu tool của server đó.
+    KHÔNG tự đăng ký vào registry nào — đó là việc của `agents/comms/tools.py::build_registry`
+    (xem Phase 2 của plans/260913-1646-langgraph-orchestrator-worker/). Tạm thời (tới khi
+    Phase 4 nối graph xong), `main.py::_lifespan` tự đăng ký các client này vào
+    `Runtime.registry` cũ để app không bị vỡ giữa chừng khi các phase multi-agent chưa hoàn tất.
     """
-    from app.mcp_client.manager import MCPClient
+    from app.mcp_client.manager import connect_all
     from app.mcp_client.registry import load_mcp_servers
 
-    clients: list[MCPClient] = []
-    for name, cfg in load_mcp_servers(settings.mcp_config_path).items():
-        client = MCPClient(name, cfg["command"], cfg.get("args"), cfg.get("env"))
-        try:
-            await client.connect()
-            await client.register_into(registry)
-            clients.append(client)
-        except Exception:  # MCP tuỳ chọn — lỗi 1 server không được giết cả app
-            log.exception("MCP '%s' kết nối lỗi — bỏ qua, agent chạy tiếp không có tool này", name)
-    return clients
+    return await connect_all(load_mcp_servers(settings.mcp_config_path))
 
 
 @dataclass
