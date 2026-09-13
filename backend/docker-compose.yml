@@ -4,6 +4,10 @@
 # Image vẫn là pgvector/pgvector (superset của postgres:16) — extension `vector`
 # không còn dùng (facts lưu phẳng), giữ image để khỏi rebuild volume.
 
+name: project  # khoá cứng — mặc định lấy theo tên thư mục chứa file này, nếu không khoá thì
+# việc dời file này (vd root -> backend/) sẽ bị Compose coi là project MỚI, không thấy
+# container/volume cũ (data KHÔNG mất, chỉ là Compose "quên" tham chiếu tới nó).
+
 services:
   db:
     image: pgvector/pgvector:pg16

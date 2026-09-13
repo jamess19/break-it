@@ -21,7 +21,5 @@ __pycache__
 # dev-only, không cần lúc chạy
 .vscode
 .idea
-docs
-plans
 eval/results
 *.log

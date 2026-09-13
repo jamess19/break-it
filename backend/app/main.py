@@ -1,4 +1,7 @@
-"""Khởi động app, ráp mọi thứ lại. `uvicorn app.main:app --reload`."""
+"""Khởi động app, ráp mọi thứ lại. `uvicorn app.main:app --reload`.
+
+Backend THUẦN API — không serve frontend nữa (xem `frontend/`, dự án Vite+React riêng,
+`npm run dev` cổng 5173, proxy sang backend lúc dev — xem `frontend/vite.config.ts`)."""
 
 from __future__ import annotations
 
@@ -6,18 +9,15 @@ import logging
 import traceback
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 
 from app.api import api_router
 from app.api.deps import build_runtime, setup_mcp
 from app.core.config import settings
 
 log = logging.getLogger("agent")
-FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
 
 @asynccontextmanager
@@ -26,7 +26,7 @@ async def _lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     `build_runtime()` sync) — tool MCP đăng ký vào `rt.external_registry` (registry rỗng
     `build_runtime()` đã tạo sẵn và đóng vào graph lúc compile). Đăng ký SAU compile vẫn thấy
     được vì registry mutable, `run_loop()` đọc `registry.defs()` live mỗi lượt gọi — xem
-    `deps.py::build_external_registry`. Đóng lại lúc shutdown."""
+    `deps.py::build_runtime`. Đóng lại lúc shutdown."""
     rt = build_runtime()
     mcp_clients = await setup_mcp()
     for client in mcp_clients:
@@ -48,13 +48,6 @@ def create_app() -> FastAPI:
     )
     app = FastAPI(title="Personal Ops Agent", lifespan=_lifespan)
     app.include_router(api_router)
-
-    # UI preview — folder frontend/ (1 file HTML, gọi thẳng REST ở trên, cùng origin → khỏi CORS).
-    app.mount("/app", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
-
-    @app.get("/", include_in_schema=False)
-    async def _ui() -> FileResponse:
-        return FileResponse(FRONTEND_DIR / "index.html")
 
     @app.get("/health", tags=["meta"])
     async def _health() -> dict:

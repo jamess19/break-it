@@ -3,6 +3,10 @@
 Agent dùng thật hằng ngày, kiến trúc theo hướng platform. Chi tiết đầy đủ:
 [`agent-platform-backend-guide.md`](./agent-platform-backend-guide.md).
 
+**Monorepo 2 project độc lập**: [`backend/`](./backend) (Python/FastAPI, mọi thứ mô tả bên
+dưới) và [`frontend/`](./frontend) (Vite + React + TypeScript + Tailwind). Không project nào
+serve/import project kia — chỉ nói chuyện qua HTTP. Lệnh chạy: xem mục "Chạy" cuối file.
+
 ## Tài liệu (`docs/`)
 
 | File | Nội dung |
@@ -27,6 +31,11 @@ Agent dùng thật hằng ngày, kiến trúc theo hướng platform. Chi tiết
 > Guide khuyên người mới tiến hoá dần từ 1 file — khung này hợp khi bạn *đã* hiểu
 > các ranh giới và muốn điền vào chỗ trống. Mỗi file stub `raise NotImplementedError`
 > kèm số **Phần** tương ứng trong guide để làm theo thứ tự.
+
+> ⚠️ **2 mục dưới (quy tắc phụ thuộc + bảng thi công) đang lỗi thời** — mô tả kiến trúc
+> single-agent cũ (`engine/`, `memory/`, `tools/mcp/`), đã đổi trong lúc refactor sang
+> multi-agent LangGraph. Xem `docs/langgraph-plan.md` (gitignored, local) để biết cấu trúc
+> thật hiện tại — phần đồng bộ lại README này nằm ở Phase 6 của plan đó, chưa chạy.
 
 ## Quy tắc phụ thuộc (đọc một chiều)
 
@@ -59,13 +68,18 @@ Ba loại "model" không được trộn:
 **Task Agent** (mở rộng — [`docs/task-agent.md`](./docs/task-agent.md)): to-do list cấp cao +
 chatbot xếp lịch tuần + cron sáng roll-over việc chưa xong. 11 tool, REST CRUD ở `api/tasks.py`.
 
-**UI preview**: `frontend/index.html` (vanilla JS, không build, gọi thẳng REST) — FastAPI serve ở
-`http://localhost:8000/` (và `/app/`) khi chạy `uvicorn app.main:app --reload`. 3 tab: Việc /
-Kế hoạch tuần / Chat. (`personal-ops-agent.html` ở root là mockup tĩnh cũ, giữ để tham khảo design.)
+**Frontend**: `frontend/` — dự án Vite + React + TypeScript + Tailwind riêng biệt, KHÔNG được
+FastAPI serve (tách hẳn BE/FE — backend chỉ là API thuần, không có `StaticFiles` mount). Chat
+UI cơ bản gọi `/chat`, `/health`. Lệnh chạy: mục "Chạy" ngay dưới.
+(`personal-ops-agent.html` ở root là mockup tĩnh cũ, giữ để tham khảo design — không liên quan
+tới `frontend/`.)
 
 ## Chạy
 
+### Backend (`backend/`)
+
 ```bash
+cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env          # điền OPENAI_API_KEY (Groq)
@@ -83,6 +97,23 @@ curl -X POST localhost:8000/chat -H 'content-type: application/json' \
   -d '{"session_id":"s1","message":"Tôi tên gì?"}'   # nhớ được = Redis OK
 ```
 
-- Provider chat: `.env` → `PROVIDER` + `OPENAI_BASE_URL` (Groq/OpenAI/…) hoặc `PROVIDER=ollama`.
-- Storage: `docker-compose.yml` + `db/init.sql`. Chi tiết `docs/database.md`.
+- Provider chat: `backend/.env` → `PROVIDER` + `OPENAI_BASE_URL` (Groq/OpenAI/…) hoặc
+  `PROVIDER=ollama`.
+- Storage: `backend/docker-compose.yml` + `backend/db/init.sql`. Chi tiết `docs/database.md`.
+  `docker-compose.yml` khoá cứng `name: project` — đừng xoá dòng đó, nếu không Compose sẽ
+  coi thư mục này là project mới mỗi khi bị di chuyển, "quên" mất container/volume cũ.
 - Debug: `docs/*` + `GET /debug/config`, `/debug/tools`, `tests/agent.http`, Postman collection.
+
+### Frontend (`frontend/`)
+
+```bash
+cd frontend
+npm install
+npm run dev      # http://localhost:5173 — proxy /chat, /plan, /health sang backend :8000
+npm run build    # kiểm tra type + build production (dist/)
+npm run lint      # oxlint
+```
+
+Cần Node ≥20.19 hoặc ≥22.12 (Vite 8 báo warning, không chặn, nếu thấp hơn). Backend phải chạy
+song song (`uvicorn app.main:app --reload` trong `backend/`, cổng 8000) — 2 process riêng,
+không process nào build/serve cái kia.
