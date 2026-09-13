@@ -1,10 +1,10 @@
-"""Node cho worker `comms` — bọc run_loop(), export make_node(provider, registry)."""
+"""Node cho worker `external` — bọc run_loop(), export make_node(provider, registry)."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from app.agents._runtime import add_cost, run_loop, trace
+from app.agents._runtime import add_cost, add_usage, run_loop, trace
 from app.domain.agent import RunContext
 from app.domain.message import Message, Role
 from app.orchestration.state import GraphState
@@ -28,7 +28,7 @@ def make_node(provider: LLMProvider, registry: ToolRegistry):
             "worker_reply": result.reply,
             "worker_trace": trace(result.messages),
             "tool_calls": state.tool_calls + result.tool_calls,
-            "usage": (state.usage + result.usage) if result.usage else state.usage,
+            "usage": add_usage(state.usage, result.usage),
             "cost_usd": add_cost(state.cost_usd, result.cost_usd),
         }
 

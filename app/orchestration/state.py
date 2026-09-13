@@ -18,7 +18,7 @@ class GraphState(BaseModel):
     trigger: str = "api"
     messages: list[Message]  # hội thoại gốc — KHÔNG đổi bởi worker/orchestrator nội bộ
 
-    next_worker: str | None = None  # "planning" | "comms" | None — orchestrator set mỗi lượt
+    next_worker: str | None = None  # "planning" | "external" | None — orchestrator set mỗi lượt
     next_task: str | None = None  # câu lệnh orchestrator giao cho worker
     worker_reply: str | None = None  # worker vừa trả gì — orchestrator đọc để quyết bước kế
     worker_trace: list[dict] = []  # chi tiết loop nội bộ worker vừa chạy (tool_calls, steps) —

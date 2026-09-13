@@ -109,3 +109,14 @@ def add_cost(a: float | None, b: float | None) -> float | None:
     if b is None:
         return a
     return a + b
+
+
+def add_usage(a: Usage | None, b: Usage | None) -> Usage | None:
+    """Cộng 2 `Usage` an toàn với `None` ở CẢ 2 bên. `Usage.__add__` (domain/message.py) chỉ
+    xử lý `self + None` (`other is None`) — không xử lý `None + Usage` (khi cộng dồn bắt đầu
+    từ `state.usage=None`, trường hợp rất hay gặp ở lượt đầu tiên của orchestrator/worker)."""
+    if a is None:
+        return b
+    if b is None:
+        return a
+    return a + b

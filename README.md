@@ -20,6 +20,7 @@ Agent dùng thật hằng ngày, kiến trúc theo hướng platform. Chi tiết
 | [`short-term-memory.md`](./docs/short-term-memory.md) | Phần 4 |
 | [`task-agent.md`](./docs/task-agent.md) | Task Agent — to-do + chatbot + cron xếp lịch tuần |
 | [`mcp.md`](./docs/mcp.md) | Phần 6 — MCP là gì, wire protocol, implementation, case study Lark |
+| [`langgraph.md`](./docs/langgraph.md) | LangGraph — khái niệm cốt lõi (state, node, edge, compile/invoke), cơ chế hoạt động thật |
 | [`langgraph-plan.md`](./docs/langgraph-plan.md) | Kế hoạch multi-agent orchestrator-worker bằng LangGraph — **chưa implement** |
 
 > ⚠️ Đây là **structure đích** (Phần 1 của guide), đã dựng sẵn khung + interface.

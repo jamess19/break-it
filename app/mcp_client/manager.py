@@ -115,7 +115,7 @@ async def connect_all(servers: dict[str, dict[str, Any]]) -> list[MCPClient]:
     1 server lỗi (chưa cài, network chết…) KHÔNG được kéo sập cả app — agent vẫn chạy
     tốt chỉ với tool native, chỉ thiếu tool của server đó. Trả list client ĐÃ CONNECT để
     gọi tiếp `register_into()` — hàm này KHÔNG tự đăng ký vào registry nào (đó là việc
-    của agents/comms/tools.py::build_registry, không phải của mcp_client/).
+    của agents/external/tools.py::build_registry, không phải của mcp_client/).
     """
     clients: list[MCPClient] = []
     for name, cfg in servers.items():

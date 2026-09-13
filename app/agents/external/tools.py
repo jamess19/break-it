@@ -1,6 +1,6 @@
-"""Bind tool MCP cho worker `comms` — KHÔNG tự implement tool.
+"""Bind tool MCP cho worker `external` — KHÔNG tự implement tool.
 
-`comms` sở hữu tool MCP (time_*, lark_* sau này) — xem docs/langgraph-plan.md mục 5.
+`external` sở hữu tool MCP (time_*, lark_* sau này) — xem docs/langgraph-plan.md mục 5.
 """
 
 from __future__ import annotations

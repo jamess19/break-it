@@ -28,7 +28,7 @@ async def _lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
     `setup_mcp()` giờ chỉ CONNECT (xem docs/langgraph-plan.md — Phase 2 của plan LangGraph),
     không tự đăng ký vào registry nào — đăng ký vào `rt.registry` (đường single-agent cũ) tạm
-    làm Ở ĐÂY cho tới khi Phase 4 thay bằng `agents/comms/tools.py::build_registry()`."""
+    làm Ở ĐÂY cho tới khi Phase 4 thay bằng `agents/external/tools.py::build_registry()`."""
     rt = build_runtime()
     mcp_clients = await setup_mcp()
     for client in mcp_clients:

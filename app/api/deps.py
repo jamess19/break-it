@@ -62,7 +62,7 @@ async def setup_mcp() -> list[MCPClient]:
     (xem lifespan trong main.py). Trả list client ĐÃ CONNECT để đăng ký tool + đóng lúc
     shutdown.
 
-    KHÔNG tự đăng ký vào registry nào — đó là việc của `agents/comms/tools.py::build_registry`
+    KHÔNG tự đăng ký vào registry nào — đó là việc của `agents/external/tools.py::build_registry`
     (xem Phase 2 của plans/260913-1646-langgraph-orchestrator-worker/). Tạm thời (tới khi
     Phase 4 nối graph xong), `main.py::_lifespan` tự đăng ký các client này vào
     `Runtime.registry` cũ để app không bị vỡ giữa chừng khi các phase multi-agent chưa hoàn tất.
